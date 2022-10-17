@@ -1,0 +1,159 @@
+---
+title: "Workflow example:stress on cognition in rodents"
+output: 
+    
+    rmdformats::readthedown:
+      code_download: true
+      toc_depth: 4
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+message = FALSE,
+warning = FALSE,
+cache = FALSE, 
+tidy = TRUE, 
+echo = TRUE
+)
+
+rm(list = ls())
+```
+
+# Setting-up {.tabset}
+
+## Loading packages
+
+```{r, cache = FALSE}
+# install.packages("pacman")
+
+pacman::p_load(tidyverse, 
+               here,
+               devtools,
+               patchwork,
+               R.rsp,
+               emmeans,
+               metafor) #for analysis
+
+# devtools::install_github("daniel1noble/orchaRd", force = TRUE)
+library(orchaRd) #for heterogeneity, marginal R2 and orchard plots
+
+```
+
+## Loading data
+
+```{r, cache = FALSE}
+dat <- read_csv(here("Workflow example_stress on cognition","Data_stress on cognition.csv"))
+
+str(dat)
+```
+
+
+# Calculating effect size and variance
+
+In this case we will use lnRR, but standardised mean differences (e.g., Cohen's D can also be used and will produce comparable results).
+
+
+To quantify differences in individual performance in cognitive assays with stress, we used the logarithm of response ratio (lnRR) calculated as:
+$$
+\ln{\text{RR}_\text{stress}} = \ln \left(
+{\frac {M_\text{stress}} {M_\text{control}}} 
+ \right)
+$$
+
+Variance was calculated as:
+
+$$
+\text{var}(\ln{\text{RR}_\text{stress}}) =
+\frac{SD_\text{stress}^2}{N_\text{stress} M_\text{stress}^2} + \frac{SD_\text{control}^2}{N_\text{control}M_\text{control}^2}
+$$ 
+Note that I have already calculated lnRR and variance previously as the data used in the meta-analysis which was bit more complicated than normal - we will calculate it using the function *escalc* in the "practice together" dataset. 
+
+# Meta-analysis
+```{r}
+mod_S0 <- rma.mv(yi = lnRR, V = lnRRV, random = list(~1|Study_ID,
+                                                          ~1|ES_ID,
+                                                          ~1|Strain),
+                 test = "t", 
+                 data = dat)
+
+#yi = effect size, V = variance, random = a list of your random effects (these will always include study ID and effect size ID)
+
+summary(mod_S0) #global effect size
+i2_ml(mod_S0) #heterogeneity: The I2 informs the proportion of the variance in observed effect is due to variance in true effects rather than sampling error
+```
+
+Creating an orchard plot:
+Checkout the vignette on how to make cool plots https://daniel1noble.github.io/orchaRd/
+```{r}
+orchard_plot(mod_S0, mod = "1", group = "Study_ID", data = dat, xlab = "lnRR", alpha=0.4)
+
+```
+
+**Fig.1** Orchard plot showing meta-analytic mean and 95% confidence interval (thick black line) and 95% prediction interval (thin black line). Individual points show observed effect sizes scaled proportionately to their precision.
+
+# Meta-regression 
+
+To explain some of the unexplained variation in the main effect of stress model, we conducted a series of uni-moderator analyses. We calculated marginal R\^2 for each moderator as well as conducted a series of pair-wise contrasts between moderator categories.
+
+Any moderator categories with k \< 5 were removed.
+
+## Type of assay
+
+The broad category of the type of assay used to measure learning or memory.
+
+```{r}
+dat$Type_assay<-as.factor(dat$Type_assay)
+
+mod_S1 <- rma.mv(yi = lnRR, V = lnRRV, mod = ~Type_assay-1, random =   list(~1|Study_ID,
+                                                                                    ~1|ES_ID,
+                                                                                    ~1|Strain),
+                 test = "t",
+                 data = dat)
+
+summary(mod_S1)
+r2_ml(mod_S1) #marginal R2 "variance explained by only fixed effects"
+```
+
+
+```{r, fig.width=10, fig.height=7}
+orchard_plot(mod_S1, mod = "Type_assay", group = "Study_ID", data = dat, xlab = "lnRR", alpha=0.4) 
+```
+
+**Fig. 2** Orchard plot showing the group-wise means of the categorical variable 'Type_assay' with their 95% confidence interval (thick black line) and 95% prediction interval (thin black line). Individual points show observed effect sizes scaled proportionately to their precision. k is number of effect sizes followed by the number of studies.
+
+
+## Age at stress
+
+The age when individuals were exposed to stress.
+
+```{r}
+
+mod_S2 <-rma.mv(yi = lnRR, V = lnRRV, mod = ~Age_stress_exposure-1, random = list(~1|Study_ID,
+                                                                                       ~1|ES_ID,
+                                                                                       ~1|Strain),
+                test = "t",
+                data = dat)
+summary(mod_S2) 
+r2_ml(mod_S2) 
+```
+
+
+```{r, fig.width=10, fig.height=7}
+orchard_plot(mod_S2, mod = "Age_stress_exposure", group ="Study_ID", data = dat, xlab = "lnRR", alpha=0.4) 
+```
+
+**Fig. 3** Orchard plot showing the group-wise means of the categorical variable 'Age_stress_exposure' with their 95% confidence interval (thick black line) and 95% prediction interval (thin black line). Individual points show observed effect sizes scaled proportionately to their precision. k is number of effect sizes followed by the number of studies.
+
+# Publication bias
+
+## Funnel plot
+
+Note that this is just an example of a funnel plot and it is best to plot it from a full-model with the moderators used in the meta-regression
+
+```{r}
+funnel(mod_S0, xlab = "lnRR", ylab = "Standard Error")
+```
+
+**Fig. 4** Funnel plot showing the standard error and residuals (lnRR) from the full model.

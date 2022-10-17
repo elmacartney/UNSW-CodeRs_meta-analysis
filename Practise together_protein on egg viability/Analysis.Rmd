@@ -1,0 +1,153 @@
+---
+title: "Parental dietary protein on egg hatching success"
+output: 
+    rmdformats::readthedown:
+      code_folding: hide
+      code_download: true
+      toc_depth: 4
+editor_options: 
+  chunk_output_type: console
+---
+# Setting-up {.tabset}
+
+## Loading packages
+```{r, warning = FALSE}
+# install.packages("pacman")
+
+pacman::p_load(tidyverse, 
+               here,
+               devtools,
+               patchwork,
+               R.rsp,
+               emmeans,
+               metafor) #for analysis
+
+#need the code below for installing orchaRd
+# devtools::install_github("daniel1noble/orchaRd", force = TRUE)
+library(orchaRd) #for heterogeneity, marginal R2 and orchard plots
+
+
+#also load these packages if we have time at the end
+library(phytools) #needed for tree
+library(ape) #needed to create VCV
+```
+
+## Loading data
+```{r}
+dat <- read.csv(here("Practise together_protein on egg viability","Data_protein on egg viability.csv"))
+
+#dat<- read.csv(file.choose())
+
+```
+
+## Calculating lnRR and Variance
+``` {r}
+
+#note that I have already arcsine transformed the means and SDs as the collected data was proportion data (i.e., bounded by 0 - 100). I used arcsine instead of log as lnRR can't take negative values. If you transform means, also need to transform SDs (using squareroot transformation).
+
+# we could also have used standardised mean differences such as Cohens D. lnRR is common in ecology as sample sizes can sometimes be unequal between groups which isn't as much of an issue with lnRR. 
+
+lnRR <- escalc(measure = "ROM", n1i = dat$n_HP, n2i = dat$n_LP, m1i = dat$mean_HP_transformed, m2i = dat$mean_LP_transformed, sd1i = dat$sd_HP_transformed, sd2i = dat$sd_LP_transform)
+
+#joining the calculated lnRR and (yi) and variance (vi) into a new dataframe
+dat2 <- bind_cols(dat, lnRR)
+```
+
+```{r}
+forest(dat2$yi, dat2$vi)
+
+```
+
+# Meta-analysis {.tabset}
+
+## MA with variance
+```{r}
+
+m1 <- rma.mv(yi = yi, V = vi, random = list(~1|esID,~1|paperID),
+                 test = "t",
+                 data = dat2)
+summary(m1) 
+i2_ml(m1)#heterogeneity: The I2 informs the proportion of the variance in observed effect is due to variance in true effects rather than sampling error
+
+
+#read https://daniel1noble.github.io/orchaRd/ for more details on making pretty plots 
+orchard_plot(m1, mod = "1", group = "paperID", data = dat2, xlab = "lnRR", alpha=0.4)
+
+```
+
+# Meta-regression {.tabset}
+
+## Sex
+```{r, warning = FALSE}
+
+dat2$parental_sex <- as.factor(dat2$parental_sex)
+
+m2<- rma.mv(yi = yi, V = vi, mod = ~parental_sex-1, random = list(~1|esID, ~1|paperID),
+                 test = "t",
+                 data = dat2)
+summary(m2) 
+r2_ml(m2) #marginal R2 "variance explained by only fixed effects"
+
+orchard_plot(m2, mod = "parental_sex", group = "paperID", data = dat2, xlab = "lnRR", alpha=0.4) 
+```
+
+## lifestage
+```{r, warning = FALSE}
+dat2$parental_lifestage <-as.factor(dat2$parental_lifestage)
+
+m3 <- rma.mv(yi = yi, V = vi, mod = ~parental_lifestage-1, random = list(~1|esID, ~1|paperID),
+                 test = "t",
+                 data = dat2)
+summary(m3) 
+r2_ml(m3)
+
+orchard_plot(m3, mod = "parental_lifestage", group = "paperID", data =dat2, xlab = "lnRR", alpha=0.4) 
+```
+
+# Publication bias and sensitivity analysis {.tabset}
+
+## Funnel plot
+```{r}
+#note that it is best to do this on a full model with all the moderators included
+
+funnel(m1)
+```
+
+# Something important that we didn't do but should do
+... Especially in eco evo studies that cover multiple species!
+
+Include a species (both phylogenetic relatedness and species differences not due to phylogeny as random effects)
+
+```{r}
+#first you need to create a phylogenetic tree. I have already done that so we can load the tree in now. 
+
+tree <- read.nexus(file.choose())
+
+plot(tree)
+
+#need to change dataset names to match tree names (this can occur when there are synonyms of species names)
+dat2$species[dat2$species == "Telostylinus_angusticollis"] <- "Derocephalus_angusticollis"
+dat2$species[dat2$species == "Bracon_hebetor"] <- "Habrobracon_hebetor"
+dat2$species[dat2$species == "Bactrocera_cucurbitae"] <- "Zeugodacus_cucurbitae"
+
+setdiff(dat2$species, as.character(tree$tip.label)) ## checking if any names don't match
+
+#creating VCV matrix
+branchlength<- compute.brlen(tree, method="Grafen", power=1)
+VCV <- vcv(branchlength, corr=TRUE)
+
+#now lets re-run mod1
+
+dat2$species <- as.factor(dat2$species)
+
+m1a <- rma.mv(yi = yi, V = vi, random = list(~1|esID,
+                                               ~1|paperID,
+                                               ~1|species),
+              R=list(species=VCV),
+                 test = "t",
+                 data = dat2)
+summary(m1a) 
+i2_ml(m1a) #species differences explain the most variation!
+
+```
+

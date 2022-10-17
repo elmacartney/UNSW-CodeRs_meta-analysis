@@ -1,0 +1,51 @@
+#NEXUS
+[R-package PHYTOOLS, Wed Oct 05 15:25:13 2022]
+
+BEGIN TAXA;
+	DIMENSIONS NTAX = 19;
+	TAXLABELS
+		Acartia_tonsa
+		Anastrepha_striata
+		Argiope_bruennichi
+		Calanus_finmarchicus
+		Chrysoperla_carnea
+		Coccinella_septempunctata
+		Cochliomyia_hominivorax
+		Coenonympha_pamphilus
+		Derocephalus_angusticollis
+		Drosophila_melanogaster
+		Ephestia_kuehniella
+		Habrobracon_hebetor
+		Lasiommata_megera
+		Phoracantha_recurva
+		Phoracantha_semipunctata
+		Physa_acuta
+		Teleogryllus_oceanicus
+		Temora_longicornis
+		Zeugodacus_cucurbitae
+	;
+END;
+BEGIN TREES;
+	TRANSLATE
+		1	Acartia_tonsa,
+		2	Anastrepha_striata,
+		3	Argiope_bruennichi,
+		4	Calanus_finmarchicus,
+		5	Chrysoperla_carnea,
+		6	Coccinella_septempunctata,
+		7	Cochliomyia_hominivorax,
+		8	Coenonympha_pamphilus,
+		9	Derocephalus_angusticollis,
+		10	Drosophila_melanogaster,
+		11	Ephestia_kuehniella,
+		12	Habrobracon_hebetor,
+		13	Lasiommata_megera,
+		14	Phoracantha_recurva,
+		15	Phoracantha_semipunctata,
+		16	Physa_acuta,
+		17	Teleogryllus_oceanicus,
+		18	Temora_longicornis,
+		19	Zeugodacus_cucurbitae
+	;
+	TREE * UNTITLED = [&R] (16,(((((((11,(8,13)mrcaott2605ott10886)mrcaott100ott677,((7,10)mrcaott633ott1874,((19,2)mrcaott4865ott6576,9)mrcaott4865ott8704)Schizophora)mrcaott100ott107,(((15,14)Phoracantha,6)Cucujiformia,5)mrcaott387ott1798)mrcaott100ott387,12)Holometabola,17)Neoptera,((18,4)mrcaott4932ott6062,1)Calanoida)mrcaott100ott705,3)Arthropoda)Protostomia;
+END;
